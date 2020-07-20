@@ -4,8 +4,9 @@ import moment from 'moment';
 
 import CKEditor from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
-import {Editor, EditorState} from 'draft-js';
+import { Editor, EditorState } from 'draft-js';
 import ReactQuill from 'react-quill';
+
 import { toast } from "react-toastify";
 
 import Form from 'react-bootstrap/Form';
@@ -13,6 +14,7 @@ import Col from 'react-bootstrap/Col';
 import Button from 'react-bootstrap/Button';
 
 import { saveWorld } from '../services/worldService';
+import VFTextEditor from './common/vfTextEditor';
 
 class NewWorldForm extends Component {
     state = {
@@ -46,7 +48,7 @@ class NewWorldForm extends Component {
     };
 
     onEditorChange = quillValue => {
-        this.setState({quillValue});
+        this.setState({ quillValue });
     };
 
     render() {
@@ -65,9 +67,9 @@ class NewWorldForm extends Component {
                         </Col>
                     </Form.Row>
                 </Form>
-                <ReactQuill theme="snow" value={this.state.quillValue} onChange={this.onEditorChange}/>
+                <VFTextEditor />
             </React.Fragment>
-        );   
+        );
     }
 }
 
