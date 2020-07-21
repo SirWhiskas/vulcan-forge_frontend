@@ -15,13 +15,16 @@ import Button from 'react-bootstrap/Button';
 
 import { saveWorld } from '../services/worldService';
 import VFTextEditor from './common/vfTextEditor';
+import NewAssetForm from './newAssetForm';
 
 class NewWorldForm extends Component {
     state = {
         worldName: "",
         currentText: "",
         savedText: "",
-        quillValue: ""
+        quillValue: "",
+        showNeWAssetForm: false,
+        newAssetFormContent: ""
     };
 
     handleSubmit = event => {
@@ -51,10 +54,20 @@ class NewWorldForm extends Component {
         this.setState({ quillValue });
     };
 
+    handleNewAsset = newAssetFormContent => {
+        const showNeWAssetForm = true;
+        this.setState({ newAssetFormContent,  showNeWAssetForm});
+    };
+
+    handleNewAssetFormClose = () => {
+        const showNeWAssetForm = false;
+        this.setState({ showNeWAssetForm});
+    };
+
     render() {
-        console.log(CKEditor);
         return (
             <React.Fragment>
+                <NewAssetForm content={this.state.newAssetFormContent} show={this.state.showNeWAssetForm} handleClose={this.handleNewAssetFormClose} />
                 <Form onSubmit={this.handleSubmit}>
                     <Form.Row>
                         <Col xs={3}>
@@ -67,7 +80,7 @@ class NewWorldForm extends Component {
                         </Col>
                     </Form.Row>
                 </Form>
-                <VFTextEditor />
+                <VFTextEditor handleNewAsset={this.handleNewAsset} />
             </React.Fragment>
         );
     }

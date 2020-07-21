@@ -1,173 +1,252 @@
-// Import React dependencies.
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-// Import the Slate editor factory.
-import { createEditor, Editor, Transforms, Text } from 'slate';
+import React, { useCallback, useMemo, useState } from 'react'
+import isHotkey from 'is-hotkey'
+import { Editable, withReact, useSlate, Slate } from 'slate-react'
+import { Editor, Transforms, createEditor } from 'slate'
+import { withHistory } from 'slate-history'
 
-// Import the Slate components and React plugin.
-import { Slate, Editable, withReact } from 'slate-react';
+import { VFRichTextButton, VFRichTextIcon, VFRichTextToolbar } from './vfRichTextComponents'
 
-// Define our own custom set of helpers.
-const CustomEditor = {
-    isBoldMarkActive(editor) {
-        const [match] = Editor.nodes(editor, {
-            match: n => n.bold === true,
-            universal: true,
-        })
+import FormatBoldIcon from '@material-ui/icons/FormatBold';
+import FormatItalicIcon from '@material-ui/icons/FormatItalic';
+import FormatUnderlinedIcon from '@material-ui/icons/FormatUnderlined';
+import CodeIcon from '@material-ui/icons/Code';
+import LooksOneIcon from '@material-ui/icons/LooksOne';
+import LooksTwoIcon from '@material-ui/icons/LooksTwo';
+import FormatQuoteIcon from '@material-ui/icons/FormatQuote';
+import FormatListNumberedIcon from '@material-ui/icons/FormatListNumbered';
+import FormatListBulletedIcon from '@material-ui/icons/FormatListBulleted';
 
-        return !!match
-    },
-
-    isCodeBlockActive(editor) {
-        const [match] = Editor.nodes(editor, {
-            match: n => n.type === 'code',
-        })
-
-        return !!match
-    },
-
-    toggleBoldMark(editor) {
-        const isActive = CustomEditor.isBoldMarkActive(editor)
-        Transforms.setNodes(
-            editor,
-            { bold: isActive ? null : true },
-            { match: n => Text.isText(n), split: true }
-        )
-    },
-
-    toggleCodeBlock(editor) {
-        const isActive = CustomEditor.isCodeBlockActive(editor)
-        Transforms.setNodes(
-            editor,
-            { type: isActive ? null : 'code' },
-            { match: n => Editor.isBlock(editor, n) }
-        )
-    },
-
-    openAssetCreatModal(editor) {
-        console.log(editor.selection);
-        console.log(editor);
-
-        let beginning = editor.selection.anchor.offset;
-        let end = editor.selection.focus.offset;
-        let row = editor.selection.anchor.path[0];
-        let col = editor.selection.anchor.path[1];
-
-        let currentContent = editor.children[row].children[col].text;
-
-        let selectedText = currentContent.substring(beginning, end);
-
-        console.log(selectedText);
-    }
+const HOTKEYS = {
+  'mod+b': 'bold',
+  'mod+i': 'italic',
+  'mod+u': 'underline',
+  'mod+`': 'code',
 }
+
+const LIST_TYPES = ['numbered-list', 'bulleted-list']
 
 const VFTextEditor = () => {
-    const editor = useMemo(() => withReact(createEditor()), [])
-    const [value, setValue] = useState(
-        JSON.parse(localStorage.getItem('content')) || [
-            {
-                type: 'paragraph',
-                children: [{ text: 'A line of text in a paragraph.' }],
-            },
-        ]
-    )
+  const [value, setValue] = useState(initialValue)
+  const renderElement = useCallback(props => <Element {...props} />, [])
+  const renderLeaf = useCallback(props => <Leaf {...props} />, [])
+  const editor = useMemo(() => withHistory(withReact(createEditor())), [])
 
-    const renderElement = useCallback(props => {
-        switch (props.element.type) {
-            case 'code':
-                return <CodeElement {...props} />
-            default:
-                return <DefaultElement {...props} />
-        }
-    }, [])
-
-    const renderLeaf = useCallback(props => {
-        return <Leaf {...props} />
-    }, [])
-
-    return (
-        <Slate
-            editor={editor}
-            value={value}
-            onChange={value => {
-                setValue(value)
-                const content = JSON.stringify(value)
-                localStorage.setItem('content', content)
-            }}>
-            <div>
-                <button
-                    onMouseDown={event => {
-                        event.preventDefault()
-                        CustomEditor.toggleBoldMark(editor)
-                    }}
-                >
-                    Bold
-                </button>
-                <button
-                    onMouseDown={event => {
-                        event.preventDefault()
-                        CustomEditor.toggleCodeBlock(editor)
-                    }}
-                >
-                    Code Block
-                </button>
-                <button
-                    onMouseDown={event => {
-                        event.preventDefault()
-                        CustomEditor.openAssetCreatModal(editor)
-                    }}
-                >
-                    Save as asset
-                </button>
-            </div>
-            <Editable
-                renderElement={renderElement}
-                renderLeaf={renderLeaf}
-                onKeyDown={event => {
-                    if (!event.ctrlKey) {
-                        return
-                    }
-
-                    // Replace the `onKeyDown` logic with our new commands.
-                    switch (event.key) {
-                        case '`': {
-                            event.preventDefault()
-                            CustomEditor.toggleCodeBlock(editor)
-                            break
-                        }
-
-                        case 'b': {
-                            event.preventDefault()
-                            CustomEditor.toggleBoldMark(editor)
-                            break
-                        }
-                    }
-                }}
-            />
-        </Slate>
-    )
+  return (
+    <Slate editor={editor} value={value} onChange={value => setValue(value)}>
+      <VFRichTextToolbar>
+        <MarkButton format="bold" icon="FormatBoldIcon" />
+        <MarkButton format="italic" icon="FormatItalicIcon" />
+        <MarkButton format="underline" icon="FormatUnderlinedIcon" />
+        <MarkButton format="code" icon="CodeIcon" />
+        <BlockButton format="heading-one" icon="LooksOneIcon" />
+        <BlockButton format="heading-two" icon="LooksTwoIcon" />
+        <BlockButton format="block-quote" icon="FormatQuoteIcon" />
+        <BlockButton format="numbered-list" icon="FormatListNumberedIcon" />
+        <BlockButton format="bulleted-list" icon="FormatListBulletedIcon" />
+      </VFRichTextToolbar>
+      <Editable
+        renderElement={renderElement}
+        renderLeaf={renderLeaf}
+        placeholder="Enter some rich text…"
+        spellCheck
+        autoFocus
+        onKeyDown={event => {
+          for (const hotkey in HOTKEYS) {
+            if (isHotkey(hotkey, event)) {
+              event.preventDefault()
+              const mark = HOTKEYS[hotkey]
+              toggleMark(editor, mark)
+            }
+          }
+        }}
+      />
+    </Slate>
+  )
 }
 
-const Leaf = props => {
-    return (
-        <span
-            {...props.attributes}
-            style={{ fontWeight: props.leaf.bold ? 'bold' : 'normal' }}
-        >
-            {props.children}
-        </span>
-    )
+const toggleBlock = (editor, format) => {
+  const isActive = isBlockActive(editor, format)
+  const isList = LIST_TYPES.includes(format)
+
+  Transforms.unwrapNodes(editor, {
+    match: n => LIST_TYPES.includes(n.type),
+    split: true,
+  })
+
+  Transforms.setNodes(editor, {
+    type: isActive ? 'paragraph' : isList ? 'list-item' : format,
+  })
+
+  if (!isActive && isList) {
+    const block = { type: format, children: [] }
+    Transforms.wrapNodes(editor, block)
+  }
 }
 
-const CodeElement = props => {
-    return (
-        <pre {...props.attributes}>
-            <code>{props.children}</code>
-        </pre>
-    )
+const toggleMark = (editor, format) => {
+  const isActive = isMarkActive(editor, format)
+
+  if (isActive) {
+    Editor.removeMark(editor, format)
+  } else {
+    Editor.addMark(editor, format, true)
+  }
 }
 
-const DefaultElement = props => {
-    return <p {...props.attributes}>{props.children}</p>
+const isBlockActive = (editor, format) => {
+  const [match] = Editor.nodes(editor, {
+    match: n => n.type === format,
+  })
+
+  return !!match
 }
+
+const isMarkActive = (editor, format) => {
+  const marks = Editor.marks(editor)
+  return marks ? marks[format] === true : false
+}
+
+const Element = ({ attributes, children, element }) => {
+  switch (element.type) {
+    case 'block-quote':
+      return <blockquote {...attributes}>{children}</blockquote>
+    case 'bulleted-list':
+      return <ul {...attributes}>{children}</ul>
+    case 'heading-one':
+      return <h1 {...attributes}>{children}</h1>
+    case 'heading-two':
+      return <h2 {...attributes}>{children}</h2>
+    case 'list-item':
+      return <li {...attributes}>{children}</li>
+    case 'numbered-list':
+      return <ol {...attributes}>{children}</ol>
+    default:
+      return <p {...attributes}>{children}</p>
+  }
+}
+
+const Leaf = ({ attributes, children, leaf }) => {
+  if (leaf.bold) {
+    children = <strong>{children}</strong>
+  }
+
+  if (leaf.code) {
+    children = <code>{children}</code>
+  }
+
+  if (leaf.italic) {
+    children = <em>{children}</em>
+  }
+
+  if (leaf.underline) {
+    children = <u>{children}</u>
+  }
+
+  return <span {...attributes}>{children}</span>
+}
+
+const BlockButton = ({ format, icon }) => {
+  const editor = useSlate()
+  const IconTag = icon;
+  return (
+    <VFRichTextButton
+      active={isBlockActive(editor, format)}
+      onMouseDown={event => {
+        event.preventDefault()
+        toggleBlock(editor, format)
+      }}
+    >
+      {getTagByFormat(format)}
+    </VFRichTextButton>
+  )
+}
+
+const MarkButton = ({ format, icon }) => {
+  const editor = useSlate()
+  const IconTag = icon;
+  console.log(IconTag);
+  return (
+    <VFRichTextButton
+      active={isMarkActive(editor, format)}
+      onMouseDown={event => {
+        event.preventDefault()
+        toggleMark(editor, format)
+      }}
+    >
+        {getTagByFormat(format)}
+    </VFRichTextButton>
+  )
+}
+
+const getTagByFormat = (format) => {
+    switch (format) {
+        case "bold":
+            return ( <FormatBoldIcon /> );
+            break;
+        case "italic":
+            return ( <FormatItalicIcon /> );
+            break;
+        case "underline":
+            return ( <FormatUnderlinedIcon /> );
+            break;
+        case "code":
+            return ( <CodeIcon /> );
+            break;
+        case "heading-one":
+            return ( <LooksOneIcon /> );
+            break;
+        case "heading-two":
+            return ( <LooksTwoIcon /> );
+            break;
+        case "block-quote":
+            return ( <FormatQuoteIcon /> );
+            break;
+        case "numbered-list":
+            return ( <FormatListNumberedIcon /> );
+            break;
+        case "bulleted-list":
+            return ( <FormatListBulletedIcon /> );
+            break;
+        default:
+            break;
+    }
+} 
+
+const initialValue = [
+  {
+    type: 'paragraph',
+    children: [
+      { text: 'This is editable ' },
+      { text: 'rich', bold: true },
+      { text: ' text, ' },
+      { text: 'much', italic: true },
+      { text: ' better than a ' },
+      { text: '<textarea>', code: true },
+      { text: '!' },
+    ],
+  },
+  {
+    type: 'paragraph',
+    children: [
+      {
+        text:
+          "Since it's rich text, you can do things like turn a selection of text ",
+      },
+      { text: 'bold', bold: true },
+      {
+        text:
+          ', or add a semantically rendered block quote in the middle of the page, like this:',
+      },
+    ],
+  },
+  {
+    type: 'block-quote',
+    children: [{ text: 'A wise quote.' }],
+  },
+  {
+    type: 'paragraph',
+    children: [{ text: 'Try it out for yourself!' }],
+  },
+]
 
 export default VFTextEditor;
