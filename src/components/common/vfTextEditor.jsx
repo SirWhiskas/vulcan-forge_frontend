@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import isHotkey from 'is-hotkey'
+import isUrl from 'is-url'
 import { Editable, withReact, useSlate, Slate } from 'slate-react'
-import { Editor, Transforms, createEditor } from 'slate'
+import { Editor, Transforms, Range, createEditor } from 'slate'
 import { withHistory } from 'slate-history'
 
 import { VFRichTextButton, VFRichTextIcon, VFRichTextToolbar } from './vfRichTextComponents'
@@ -15,6 +16,7 @@ import LooksTwoIcon from '@material-ui/icons/LooksTwo';
 import FormatQuoteIcon from '@material-ui/icons/FormatQuote';
 import FormatListNumberedIcon from '@material-ui/icons/FormatListNumbered';
 import FormatListBulletedIcon from '@material-ui/icons/FormatListBulleted';
+import LinkIcon from '@material-ui/icons/Link';
 
 const HOTKEYS = {
   'mod+b': 'bold',
@@ -29,7 +31,7 @@ const VFTextEditor = () => {
   const [value, setValue] = useState(initialValue)
   const renderElement = useCallback(props => <Element {...props} />, [])
   const renderLeaf = useCallback(props => <Leaf {...props} />, [])
-  const editor = useMemo(() => withHistory(withReact(createEditor())), [])
+  const editor = useMemo(() => withLinks(withHistory(withReact(createEditor()))), [])
 
   return (
     <Slate editor={editor} value={value} onChange={value => setValue(value)}>
@@ -43,6 +45,7 @@ const VFTextEditor = () => {
         <BlockButton format="block-quote" icon="FormatQuoteIcon" />
         <BlockButton format="numbered-list" icon="FormatListNumberedIcon" />
         <BlockButton format="bulleted-list" icon="FormatListBulletedIcon" />
+        <LinkButton />
       </VFRichTextToolbar>
       <Editable
         renderElement={renderElement}
@@ -62,6 +65,70 @@ const VFTextEditor = () => {
       />
     </Slate>
   )
+}
+
+const withLinks = editor => {
+    const { insertData, insertText, isInline } = editor
+
+    editor.isInline = element => {
+        return element.type === 'link' ? true : isInline(element)
+    }
+
+    editor.insertText = text => {
+        if (text && isUrl(text)) {
+        wrapLink(editor, text)
+        } else {
+        insertText(text)
+        }
+    }
+
+    editor.insertData = data => {
+        const text = data.getData('text/plain')
+
+        if (text && isUrl(text)) {
+        wrapLink(editor, text)
+        } else {
+        insertData(data)
+        }
+    }
+
+    return editor
+}
+
+const insertLink = (editor, url) => {
+    if (editor.selection) {
+        wrapLink(editor, url)
+    }
+}
+
+const isLinkActive = editor => {
+    const [link] = Editor.nodes(editor, { match: n => n.type === 'link' })
+    return !!link
+}
+
+const unwrapLink = editor => {
+    Transforms.unwrapNodes(editor, { match: n => n.type === 'link' })
+}
+
+const wrapLink = (editor, url) => {
+    if (isLinkActive(editor)) {
+        unwrapLink(editor)
+    }
+
+    const { selection } = editor
+    const isCollapsed = selection && Range.isCollapsed(selection)
+    const link = {
+        type: 'link',
+        url,
+        children: isCollapsed ? [{ text: url }] : [],
+    }
+
+    if (isCollapsed) {
+        Transforms.insertNodes(editor, link)
+    } else {
+        Transforms.wrapNodes(editor, link, { split: true })
+        Transforms.collapse(editor, { edge: 'end' })
+    }
 }
 
 const toggleBlock = (editor, format) => {
@@ -120,6 +187,12 @@ const Element = ({ attributes, children, element }) => {
       return <li {...attributes}>{children}</li>
     case 'numbered-list':
       return <ol {...attributes}>{children}</ol>
+    case 'link':
+        return (
+            <a {...attributes} href={element.url}>
+            {children}
+            </a>
+        )
     default:
       return <p {...attributes}>{children}</p>
   }
@@ -147,7 +220,6 @@ const Leaf = ({ attributes, children, leaf }) => {
 
 const BlockButton = ({ format, icon }) => {
   const editor = useSlate()
-  const IconTag = icon;
   return (
     <VFRichTextButton
       active={isBlockActive(editor, format)}
@@ -163,8 +235,6 @@ const BlockButton = ({ format, icon }) => {
 
 const MarkButton = ({ format, icon }) => {
   const editor = useSlate()
-  const IconTag = icon;
-  console.log(IconTag);
   return (
     <VFRichTextButton
       active={isMarkActive(editor, format)}
@@ -177,6 +247,23 @@ const MarkButton = ({ format, icon }) => {
     </VFRichTextButton>
   )
 }
+
+const LinkButton = () => {
+    const editor = useSlate()
+    return (
+      <VFRichTextButton
+        active={isLinkActive(editor)}
+        onMouseDown={event => {
+          event.preventDefault()
+          const url = window.prompt('Enter the URL of the link:')
+          if (!url) return
+          insertLink(editor, url)
+        }}
+      >
+        <LinkIcon />
+      </VFRichTextButton>
+    )
+  }
 
 const getTagByFormat = (format) => {
     switch (format) {
@@ -206,6 +293,9 @@ const getTagByFormat = (format) => {
             break;
         case "bulleted-list":
             return ( <FormatListBulletedIcon /> );
+            break;
+        case "insert-link":
+            return ( <LinkIcon /> );
             break;
         default:
             break;
