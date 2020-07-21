@@ -2,11 +2,6 @@ import React, { Component } from "react";
 
 import moment from 'moment';
 
-import CKEditor from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
-import { Editor, EditorState } from 'draft-js';
-import ReactQuill from 'react-quill';
-
 import { toast } from "react-toastify";
 
 import Form from 'react-bootstrap/Form';
@@ -54,7 +49,7 @@ class NewWorldForm extends Component {
         this.setState({ quillValue });
     };
 
-    handleNewAsset = newAssetFormContent => {
+    handleNewMonster = newAssetFormContent => {
         const showNeWAssetForm = true;
         this.setState({ newAssetFormContent,  showNeWAssetForm});
     };
@@ -80,7 +75,7 @@ class NewWorldForm extends Component {
                         </Col>
                     </Form.Row>
                 </Form>
-                <VFTextEditor handleNewAsset={this.handleNewAsset} />
+                <VFTextEditor handleNewMonster={this.handleNewMonster} />
             </React.Fragment>
         );
     }

@@ -18,6 +18,8 @@ import FormatListNumberedIcon from '@material-ui/icons/FormatListNumbered';
 import FormatListBulletedIcon from '@material-ui/icons/FormatListBulleted';
 import LinkIcon from '@material-ui/icons/Link';
 
+import { GiMonsterGrasp } from 'react-icons/gi'
+
 const HOTKEYS = {
   'mod+b': 'bold',
   'mod+i': 'italic',
@@ -27,7 +29,7 @@ const HOTKEYS = {
 
 const LIST_TYPES = ['numbered-list', 'bulleted-list']
 
-const VFTextEditor = () => {
+const VFTextEditor = ({ handleNewMonster }) => {
   const [value, setValue] = useState(initialValue)
   const renderElement = useCallback(props => <Element {...props} />, [])
   const renderLeaf = useCallback(props => <Leaf {...props} />, [])
@@ -46,6 +48,7 @@ const VFTextEditor = () => {
         <BlockButton format="numbered-list" icon="FormatListNumberedIcon" />
         <BlockButton format="bulleted-list" icon="FormatListBulletedIcon" />
         <LinkButton />
+        <AddNewMonsterButton functionHandler={handleNewMonster} />
       </VFRichTextToolbar>
       <Editable
         renderElement={renderElement}
@@ -246,6 +249,37 @@ const MarkButton = ({ format, icon }) => {
         {getTagByFormat(format)}
     </VFRichTextButton>
   )
+}
+
+const AddNewMonsterButton = ({ functionHandler }) => {
+    const editor = useSlate()
+  return (
+    <VFRichTextButton
+      active={true}
+      onMouseDown={event => {
+        event.preventDefault()
+        functionHandler(getSelectedContents(editor))
+      }}
+    >
+        <GiMonsterGrasp />
+    </VFRichTextButton>
+  )
+}
+
+const getSelectedContents = editor => {
+    console.log(editor.selection);
+    console.log(editor);
+
+    let beginning = editor.selection.anchor.offset;
+    let end = editor.selection.focus.offset;
+    let row = editor.selection.anchor.path[0];
+    let col = editor.selection.anchor.path[1];
+
+    let currentContent = editor.children[row].children[col].text;
+
+    let selectedText = currentContent.substring(beginning, end);
+
+    return selectedText;
 }
 
 const LinkButton = () => {
