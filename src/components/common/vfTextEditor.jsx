@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 import isHotkey from 'is-hotkey'
 import isUrl from 'is-url'
 import { Editable, withReact, useSlate, Slate } from 'slate-react'
-import { Editor, Transforms, Range, createEditor } from 'slate'
+import { Editor, Transforms, Range, createEditor, Text } from 'slate'
 import { withHistory } from 'slate-history'
 
 import { VFRichTextButton, VFRichTextIcon, VFRichTextToolbar } from './vfRichTextComponents'
@@ -48,7 +48,7 @@ const VFTextEditor = ({ handleNewMonster }) => {
         <BlockButton format="numbered-list" icon="FormatListNumberedIcon" />
         <BlockButton format="bulleted-list" icon="FormatListBulletedIcon" />
         <LinkButton />
-        <AddNewMonsterButton functionHandler={handleNewMonster} />
+        <AddNewMonsterButton format="monster" functionHandler={handleNewMonster} />
       </VFRichTextToolbar>
       <Editable
         renderElement={renderElement}
@@ -134,6 +134,10 @@ const wrapLink = (editor, url) => {
     }
 }
 
+const markMonster = (editor, format) => {
+    Editor.addMark(editor, format, true)
+}
+
 const toggleBlock = (editor, format) => {
   const isActive = isBlockActive(editor, format)
   const isList = LIST_TYPES.includes(format)
@@ -196,6 +200,10 @@ const Element = ({ attributes, children, element }) => {
             {children}
             </a>
         )
+    case 'monster':
+        return (
+            <strong>{children}</strong>
+        )
     default:
       return <p {...attributes}>{children}</p>
   }
@@ -216,6 +224,10 @@ const Leaf = ({ attributes, children, leaf }) => {
 
   if (leaf.underline) {
     children = <u>{children}</u>
+  }
+
+  if (leaf.monster) {
+    children = <strong className="monster-name">{children}</strong>
   }
 
   return <span {...attributes}>{children}</span>
@@ -251,13 +263,14 @@ const MarkButton = ({ format, icon }) => {
   )
 }
 
-const AddNewMonsterButton = ({ functionHandler }) => {
+const AddNewMonsterButton = ({ functionHandler, format }) => {
     const editor = useSlate()
   return (
     <VFRichTextButton
       active={true}
       onMouseDown={event => {
         event.preventDefault()
+        markMonster(editor, format)
         functionHandler(getSelectedContents(editor))
       }}
     >

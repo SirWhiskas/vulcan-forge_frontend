@@ -73,3 +73,11 @@ input:focus {
 [data-slate-editor] > * + * {
   margin-top: 1em;
 }
+
+/*
+* Custom styles
+*/
+
+.monster-name {
+  color: red;
+}
